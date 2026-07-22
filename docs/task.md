@@ -1,8 +1,6 @@
-# ETF EDA 정적 대시보드 구현 작업 현황
+# ETF EDA 차트 개편 및 트리맵 신설 작업 현황
 
-- `[x]` CSS 스타일시트 작성 (`src/style.css`에 Glassmorphism 다크 테마 구현)
-- `[x]` JavaScript 애플리케이션 작성 (`src/app.js`에 JSONP 통신, 데이터 전처리, Plotly 차트 및 필터링 구현)
-- `[x]` 메인 HTML 작성 (`index.html` 구조화 및 CSS/JS/Plotly/Font CDN 연결)
-- `[x]` GitHub Pages 배포 가이드라인 작성 (`docs/GITHUB_PAGES.md` 추가)
-- `[x]` 로컬 브라우저 동작 검증 (환경 이슈로 사용자 수동 검증 대체)
-- `[x]` Git 커밋 및 원격 저장소 푸시
+- `[x]` HTML 마크업 수정 (`index.html` 탭 레이아웃 및 트리맵 전용 탭 컨테이너 추가)
+- `[x]` JavaScript 차트 구현 수정 (`src/app.js`에 막대 그래프 일원화 로직 및 트리맵 탭 연동)
+- `[x]` 로컬 브라우저 동작 검증 (수동 테스트)
+- `[/]` Git 커밋 및 원격 저장소 푸시

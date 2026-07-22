@@ -173,14 +173,20 @@
                     <div class="tab-header active" data-tab="tab-share">🏢 운용사 & 테마 점유율</div>
                     <div class="tab-header" data-tab="tab-dist">📉 등락률 및 분포 분석</div>
                     <div class="tab-header" data-tab="tab-mcap-trade">🏆 시가총액 & 거래 분석</div>
+                    <div class="tab-header" data-tab="tab-treemap">🌳 운용사별 트리맵</div>
                     <div class="tab-header" data-tab="tab-sheet">📋 ETF 상세 데이터 시트</div>
                 </div>
                 
                 <!-- Tab Contents -->
-                <!-- Tab 1: Share -->
+                <!-- Tab 1: Share (Bar Charts) -->
                 <div id="tab-share" class="tab-content active">
-                    <div class="card" style="padding: 16px;">
-                        <div id="chart-treemap" class="plotly-chart-container"></div>
+                    <div class="charts-grid">
+                        <div class="card">
+                            <div id="chart-company-bar" class="plotly-chart-container"></div>
+                        </div>
+                        <div class="card">
+                            <div id="chart-theme-bar" class="plotly-chart-container"></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -200,6 +206,13 @@
                         <div class="card">
                             <div id="chart-amount-bar" class="plotly-chart-container"></div>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Tab 4: Treemap -->
+                <div id="tab-treemap" class="tab-content">
+                    <div class="card" style="padding: 16px;">
+                        <div id="chart-treemap" class="plotly-chart-container"></div>
                     </div>
                 </div>
                 

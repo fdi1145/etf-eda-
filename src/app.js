@@ -444,14 +444,112 @@ function updateKPIs() {
 // ==========================================================================
 
 function renderCharts() {
-    renderTreeMap();
+    renderCompanyBar();
+    renderThemeBar();
     renderHistogram();
     renderMcapBar();
     renderAmountBar();
+    renderTreeMap();
 }
 
 /**
- * 🏢 운용사별 시가총액 점유율 트리맵
+ * 🏢 운용사별 시가총액 점유율 막대 그래프
+ */
+function renderCompanyBar() {
+    const data = appState.filteredData;
+    if (data.length === 0) {
+        Plotly.purge("chart-company-bar");
+        return;
+    }
+    
+    // 운용사별 시가총액 합계 구하기
+    const mcapByCompany = {};
+    data.forEach(item => {
+        const comp = item["운용사"];
+        mcapByCompany[comp] = (mcapByCompany[comp] || 0) + item["시가총액(억)"];
+    });
+    
+    const sorted = Object.entries(mcapByCompany)
+        .sort((a, b) => a[1] - b[1]); // 오름차순 (수평 바 차트 정렬 최적화)
+        
+    const plotData = [{
+        y: sorted.map(c => c[0]),
+        x: sorted.map(c => c[1]),
+        type: "bar",
+        orientation: "h",
+        marker: {
+            color: sorted.map(c => c[1]),
+            colorscale: "Viridis"
+        },
+        text: sorted.map(c => (c[1] / 10000).toFixed(2) + " 조 원"),
+        textposition: 'auto'
+    }];
+    
+    const layout = {
+        ...PLOTLY_THEME,
+        title: "<b>🏢 자산운용사별 시가총액 합계 (막대 그래프)</b>",
+        xaxis: { 
+            title: "시가총액 (억 원)",
+            gridcolor: 'rgba(255, 255, 255, 0.05)'
+        },
+        yaxis: {
+            automargin: true
+        }
+    };
+    
+    Plotly.newPlot("chart-company-bar", plotData, layout, { responsive: true, displayModeBar: false });
+}
+
+/**
+ * 🏷️ 테마별 시가총액 점유율 막대 그래프
+ */
+function renderThemeBar() {
+    const data = appState.filteredData;
+    if (data.length === 0) {
+        Plotly.purge("chart-theme-bar");
+        return;
+    }
+    
+    // 테마별 시가총액 합계 구하기
+    const mcapByTheme = {};
+    data.forEach(item => {
+        const theme = item["테마분류"];
+        mcapByTheme[theme] = (mcapByTheme[theme] || 0) + item["시가총액(억)"];
+    });
+    
+    const sorted = Object.entries(mcapByTheme)
+        .sort((a, b) => a[1] - b[1]);
+        
+    const plotData = [{
+        y: sorted.map(t => t[0]),
+        x: sorted.map(t => t[1]),
+        type: "bar",
+        orientation: "h",
+        marker: {
+            color: sorted.map(t => t[1]),
+            colorscale: "Cividis"
+        },
+        text: sorted.map(t => t[1].toLocaleString() + " 억"),
+        textposition: 'auto'
+    }];
+    
+    const layout = {
+        ...PLOTLY_THEME,
+        title: "<b>🏷️ 테마별 시가총액 합계 (막대 그래프)</b>",
+        xaxis: { 
+            title: "시가총액 (억 원)",
+            gridcolor: 'rgba(255, 255, 255, 0.05)'
+        },
+        yaxis: {
+            automargin: true
+        }
+    };
+    
+    Plotly.newPlot("chart-theme-bar", plotData, layout, { responsive: true, displayModeBar: false });
+}
+
+/**
+ * 🌳 운용사별 시가총액 점유율 트리맵 (신규 탭 연동)
  */
 function renderTreeMap() {
     const data = appState.filteredData;
@@ -460,7 +558,6 @@ function renderTreeMap() {
         return;
     }
     
-    // 운용사별 데이터 그룹화
     const mcapByCompany = {};
     data.forEach(item => {
         const comp = item["운용사"];
@@ -471,15 +568,14 @@ function renderTreeMap() {
     const parents = [""];
     const values = [data.reduce((acc, d) => acc + d["시가총액(억)"], 0)];
     
-    // 부모 노드: 운용사들
     for (const [comp, mcap] of Object.entries(mcapByCompany)) {
         labels.push(comp);
         parents.push("전체 ETF");
         values.push(mcap);
     }
     
-    // 자식 노드: 개별 ETF들 (비중이 큰 상위 50개만 표시하여 차트 난잡함 방지)
-    const sortedETF = [...data].sort((a, b) => b["시가총액(억)"] - a["시가총액(억)"]).slice(0, 50);
+    // 시가총액 상위 100개 종목을 매핑하여 상세도 높임
+    const sortedETF = [...data].sort((a, b) => b["시가총액(억)"] - a["시가총액(억)"]).slice(0, 100);
     sortedETF.forEach(item => {
         labels.push(item["종목명"]);
         parents.push(item["운용사"]);
@@ -501,7 +597,7 @@ function renderTreeMap() {
     
     const layout = {
         ...PLOTLY_THEME,
-        title: "<b>운용사별 시가총액 점유율 (상위 50개 ETF 트리맵)</b>",
+        title: "<b>🌳 운용사별 종목 시가총액 점유율 (상위 100개 ETF 트리맵)</b>",
         margin: { t: 50, b: 10, l: 10, r: 10 }
     };
     
@@ -509,7 +605,7 @@ function renderTreeMap() {
 }
 
 /**
- * 📉 ETF 등락률 분포 히스토그램
+ * 📉 ETF 등락률 분포 (구간별 빈도 막대 그래프)
  */
 function renderHistogram() {
     const data = appState.filteredData;
@@ -518,12 +614,32 @@ function renderHistogram() {
         return;
     }
     
-    const rates = data.map(d => d["등락률"]);
+    // 등락률 구간 정의 (Binning)
+    const bins = {
+        '~ -5.0%': 0,
+        '-5.0% ~ -3.0%': 0,
+        '-3.0% ~ -1.0%': 0,
+        '-1.0% ~ +1.0%': 0,
+        '+1.0% ~ +3.0%': 0,
+        '+3.0% ~ +5.0%': 0,
+        '+5.0% ~': 0
+    };
+    
+    data.forEach(item => {
+        const rate = item["등락률"];
+        if (rate <= -5) bins['~ -5.0%']++;
+        else if (rate > -5 && rate <= -3) bins['-5.0% ~ -3.0%']++;
+        else if (rate > -3 && rate <= -1) bins['-3.0% ~ -1.0%']++;
+        else if (rate > -1 && rate < 1) bins['-1.0% ~ +1.0%']++;
+        else if (rate >= 1 && rate < 3) bins['+1.0% ~ +3.0%']++;
+        else if (rate >= 3 && rate < 5) bins['+3.0% ~ +5.0%']++;
+        else bins['+5.0% ~']++;
+    });
     
     const plotData = [{
-        x: rates,
-        type: "histogram",
-        nbinsx: 30,
+        x: Object.keys(bins),
+        y: Object.values(bins),
+        type: "bar",
         marker: {
             color: '#8b5cf6', // --accent-purple
             line: {
@@ -531,14 +647,15 @@ function renderHistogram() {
                 width: 1
             }
         },
-        opacity: 0.8
+        text: Object.values(bins).map(v => v > 0 ? v + "개" : ""),
+        textposition: 'auto'
     }];
     
     const layout = {
         ...PLOTLY_THEME,
-        title: "<b>ETF 등락률 분포 (빈도수)</b>",
+        title: "<b>📉 ETF 등락률 구간별 빈도 (막대 그래프)</b>",
         xaxis: { 
-            title: "등락률 (%)",
+            title: "등락률 구간",
             gridcolor: 'rgba(255, 255, 255, 0.05)'
         },
         yaxis: { 
