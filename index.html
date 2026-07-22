@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 네이버 ETF 종합 EDA 대시보드</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="src/style.css">
+    
+    <style>
+        /* Loading Overlay Style */
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent-blue, #3b82f6);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader" class="loader-overlay">
+        <div class="spinner"></div>
+        <p style="font-weight: 600; font-size: 1.1rem; color: #f3f4f6;">실시간 ETF 시세 수집 중...</p>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar Filter Controller -->
+        <aside class="sidebar">
+            <div style="margin-bottom: 8px;">
+                <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                    🔍 필터 컨트롤러
+                </h2>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">대시보드 데이터를 실시간 필터링합니다.</p>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--card-border);">
+            
+            <!-- Search Query -->
+            <div class="filter-group">
+                <label class="filter-label" for="search-query">종목명 검색</label>
+                <input type="text" id="search-query" class="search-input" placeholder="검색어 입력 (예: TIGER)">
+            </div>
+            
+            <!-- Company Filter (Multiselect) -->
+            <div class="filter-group">
+                <label class="filter-label">자산운용사 선택</label>
+                <div class="multi-select-container">
+                    <div id="company-trigger" class="multi-select-trigger">
+                        <span id="comp-selected-text">자산운용사 선택</span>
+                        <span>▼</span>
+                    </div>
+                    <div id="company-options" class="multi-select-options">
+                        <!-- Options generated dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Theme Filter (Multiselect) -->
+            <div class="filter-group">
+                <label class="filter-label">테마/유형 선택</label>
+                <div class="multi-select-container">
+                    <div id="theme-trigger" class="multi-select-trigger">
+                        <span id="theme-selected-text">테마/유형 선택</span>
+                        <span>▼</span>
+                    </div>
+                    <div id="theme-options" class="multi-select-options">
+                        <!-- Options generated dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Market Cap Range Slider (Double Handle) -->
+            <div class="filter-group">
+                <label class="filter-label">시가총액 범위 (억 원)</label>
+                <div class="slider-container">
+                    <div class="range-inputs">
+                        <div id="slider-track" class="range-track"></div>
+                        <input type="range" id="slider-min" value="0">
+                        <input type="range" id="slider-max" value="100000">
+                    </div>
+                    <div class="slider-values">
+                        <span>Min: <b id="val-min" style="color: #60a5fa;">0</b> 억</span>
+                        <span>Max: <b id="val-max" style="color: #60a5fa;">100,000</b> 억</span>
+                    </div>
+                </div>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--card-border); margin-top: auto;">
+            
+            <!-- Info Box -->
+            <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; padding: 12px; font-size: 0.85rem; color: #93c5fd;">
+                <p>🔄 <b>실시간 갱신 시간</b></p>
+                <p id="timestamp" style="font-weight: 700; margin-top: 4px;">Loading...</p>
+            </div>
+            
+            <!-- Refresh Button -->
+            <button id="btn-refresh" class="btn btn-primary">데이터 즉시 새로고침</button>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Header Title -->
+            <header class="header-banner">
+                <h1>📈 Naver ETF 실시간 종합 EDA 대시보드</h1>
+                <p>네이버 금융 실시간 시세 API 데이터를 직접 연동하여 브라우저에서 분석하는 정적 웹 플랫폼</p>
+            </header>
+            
+            <!-- KPI Summary Cards -->
+            <section class="kpi-grid">
+                <!-- KPI 1 -->
+                <div class="card kpi-card">
+                    <span class="kpi-title">📊 총 ETF 종목 수</span>
+                    <span id="kpi-count" class="kpi-value">0 개</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">필터링 조건 부합 개수</span>
+                </div>
+                <!-- KPI 2 -->
+                <div class="card kpi-card">
+                    <span class="kpi-title">💰 총 시가총액 합계</span>
+                    <span id="kpi-mcap" class="kpi-value">0.00 조 원</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">분석 대상 종목 합계</span>
+                </div>
+                <!-- KPI 3 -->
+                <div class="card kpi-card">
+                    <span class="kpi-title">📈 상승 / 하락 종목</span>
+                    <span id="kpi-up-down" class="kpi-value" style="color: var(--accent-green);">0 ▲ / 0 ▼</span>
+                    <span id="kpi-up-down-delta" class="kpi-delta delta-neutral">보합 0개</span>
+                </div>
+                <!-- KPI 4 -->
+                <div class="card kpi-card">
+                    <span class="kpi-title">⚖️ 시가총액 가중평균 등락률</span>
+                    <span id="kpi-weighted" class="kpi-value">0.00%</span>
+                    <span id="kpi-weighted-delta" class="kpi-delta">0.00%</span>
+                </div>
+            </section>
+            
+            <!-- Tabs View -->
+            <section class="tabs-container">
+                <!-- Tab Headers -->
+                <div class="tabs-headers">
+                    <div class="tab-header active" data-tab="tab-share">🏢 운용사 & 테마 점유율</div>
+                    <div class="tab-header" data-tab="tab-dist">📉 등락률 및 분포 분석</div>
+                    <div class="tab-header" data-tab="tab-mcap-trade">🏆 시가총액 & 거래 분석</div>
+                    <div class="tab-header" data-tab="tab-sheet">📋 ETF 상세 데이터 시트</div>
+                </div>
+                
+                <!-- Tab Contents -->
+                <!-- Tab 1: Share -->
+                <div id="tab-share" class="tab-content active">
+                    <div class="card" style="padding: 16px;">
+                        <div id="chart-treemap" class="plotly-chart-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Tab 2: Distribution -->
+                <div id="tab-dist" class="tab-content">
+                    <div class="card" style="padding: 16px;">
+                        <div id="chart-histogram" class="plotly-chart-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Tab 3: MCAP & Trade -->
+                <div id="tab-mcap-trade" class="tab-content">
+                    <div class="charts-grid">
+                        <div class="card">
+                            <div id="chart-mcap-bar" class="plotly-chart-container"></div>
+                        </div>
+                        <div class="card">
+                            <div id="chart-amount-bar" class="plotly-chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab 4: Data Sheet -->
+                <div id="tab-sheet" class="tab-content">
+                    <div class="card">
+                        <div class="table-header-actions">
+                            <h3 class="table-title">전체/필터링된 ETF 리스트</h3>
+                            <button onclick="downloadCSV()" class="btn btn-download">📥 현재 필터링된 데이터 CSV 다운로드</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-col="종목코드">종목코드</th>
+                                        <th data-col="종목명">종목명</th>
+                                        <th data-col="운용사">운용사</th>
+                                        <th data-col="테마분류">테마분류</th>
+                                        <th data-col="현재가" style="text-align:right;">현재가</th>
+                                        <th data-col="전일대비" style="text-align:right;">전일대비</th>
+                                        <th data-col="등락률" style="text-align:right;">등락률</th>
+                                        <th data-col="NAV" style="text-align:right;">NAV</th>
+                                        <th data-col="3개월수익률" style="text-align:right;">3개월수익률</th>
+                                        <th data-col="거래량" style="text-align:right;">거래량</th>
+                                        <th data-col="거래대금(백만)" style="text-align:right;">거래대금</th>
+                                        <th data-col="시가총액(억)" style="text-align:right;">시가총액</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-body">
+                                    <!-- Table rows generated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Application JavaScript -->
+    <script src="src/app.js"></script>
+</body>
+</html>
