@@ -5,4 +5,4 @@
 - `[x]` 메인 HTML 작성 (`index.html` 구조화 및 CSS/JS/Plotly/Font CDN 연결)
 - `[x]` GitHub Pages 배포 가이드라인 작성 (`docs/GITHUB_PAGES.md` 추가)
 - `[x]` 로컬 브라우저 동작 검증 (환경 이슈로 사용자 수동 검증 대체)
-- `[/]` Git 커밋 및 원격 저장소 푸시
+- `[x]` Git 커밋 및 원격 저장소 푸시
