@@ -1,45 +1,48 @@
-# 차트 막대 그래프 일원화 및 운용사별 시가총액 트리맵 신설 계획
+# GitHub Actions 기반 실시간 ETF 데이터 자동 수집 파이프라인 구현 계획
 
-대시보드의 일관성과 가독성을 위해 기존의 시각화 도구(트리맵, 히스토그램)를 모두 막대 그래프(Bar Chart)로 일원화하고, 별도의 탭을 생성하여 **"운용사별 시가총액 점유율 트리맵"**을 독립적으로 추가합니다. 이를 통해 각 자산운용사 내에서 어떤 종목들이 얼마만큼의 시가총액 비중을 차지하는지 한눈에 직관적으로 비교할 수 있도록 개선합니다.
+GitHub Actions 워크플로우를 생성하여 정기적으로 네이버 금융 ETF 데이터를 수집하고, 수집된 CSV 파일을 원격 저장소의 `data/` 폴더에 커밋 및 푸시하여 이력이 자동으로 기록되도록 구성합니다.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **차트 개편 및 탭 구조 확장**
-> 1. **기존 트리맵 탭**: 운용사별 시가총액 막대 그래프 및 테마별 시가총액 막대 그래프 2개로 분할 개편됩니다.
-> 2. **등락률 분포 탭**: 기존 히스토그램 대신, 등락률 구간(-5% 이하 ~ +5% 이상 등)을 7개 범주로 나누어 집계한 뒤 **일반 막대 그래프(Bar Chart)**로 시각화합니다.
-> 3. **트리맵 전용 탭 신설**: `🌳 운용사별 트리맵` 탭을 추가하여 운용사 그룹 내 개별 ETF의 시가총액 비중을 트리맵 구조로 깊이 있게 분석합니다.
+> **GitHub Actions의 주기 제한 (매 1분 주기 제약)**
+> GitHub Actions의 `on.schedule` (cron) 기능은 플랫폼 정책상 **최소 실행 주기가 5분**으로 제한되어 있습니다. `* * * * *` (1분 주기)로 작성하더라도 GitHub 스케줄러가 이를 강제로 5분~15분 주기로 조절하여 실행합니다. 
+> 
+> 또한, 매 1분마다 원격 저장소에 커밋과 푸시를 반복하면 저장소 용량 초과와 잦은 푸시 충돌(Push Conflict)이 유발될 수 있습니다. 
+> 따라서 본 계획에서는 **매 5분 주기(`*/5 * * * *`) 스케줄**로 자동 실행되도록 워크플로우를 생성하되, 필요 시 사용자가 즉시 수동으로 실행(`workflow_dispatch`)할 수 있는 버튼을 추가하는 방안을 제안합니다.
+
+> [!NOTE]
+> **1회성 수집용 스크립트 필요**
+> 기존 `src/etf_scheduler.py`는 `while True` 무한 루프 구조로 짜여있어 GitHub Actions에서 실행 시 종료되지 않고 타임아웃 에러를 발생시킵니다. 따라서 1회만 단독 실행되어 데이터를 수집/저장하고 정상 종료되는 `src/etf_collector.py`를 신규 작성합니다.
 
 ## Proposed Changes
 
-대시보드 UI 레이아웃 확장 및 차트 데이터 렌더링 로직을 수정합니다.
+---
+
+### [NEW] 자동 수집 리소스
+
+#### [NEW] [src/etf_collector.py](file:///c:/Users/student/Documents/etf-eda/src/etf_collector.py)
+- 네이버 금융 ETF API에 요청을 보내 1회 시세 데이터를 받아옵니다.
+- 데이터를 정제한 후 `data/etf_data_YYYYMMDD_HHMMSS.csv` 형태로 저장하고 종료됩니다.
+- 구글 파이썬 스타일 가이드(타입 히트, 상세 Docstring)를 엄격히 준수하여 신규 작성합니다.
+
+#### [NEW] [.github/workflows/data-collector.yml](file:///c:/Users/student/Documents/etf-eda/.github/workflows/data-collector.yml)
+- GitHub Actions 워크플로우 정의 파일입니다.
+- 매 5분 주기 스케줄링(`*/5 * * * *`) 및 수동 트리거(`workflow_dispatch`)를 활성화합니다.
+- 가상환경(Python 3.11) 구축 및 `src/etf_collector.py`를 구동합니다.
+- 새로 수집되어 생성된 CSV 파일을 감지하여 Git에 추가(`git add data/`)하고, 사용자 `fdi1145` (이메일: `fdi1145@naver.com`) 명의로 커밋하여 푸시합니다.
+- 토큰 권한 오류 방지를 위해 `permissions: contents: write` 설정을 추가합니다.
 
 ---
 
-### [MODIFY] 대시보드 리소스
-
-#### [MODIFY] [index.html](file:///c:/Users/student/Documents/etf-eda/index.html)
-- 탭 헤더 영역에 `🌳 운용사별 트리맵`을 신설하고, 기존 상세 시트 탭의 인덱스를 조정합니다.
-- `tab-share`(운용사 & 테마 점유율) 컨텐츠 영역을 2분할 그리드로 변경하고, `#chart-company-bar`와 `#chart-theme-bar` 컨테이너를 배치합니다.
-- 신규 트리맵 탭 컨텐츠 영역(`tab-treemap`)을 추가하고, `#chart-treemap` 컨테이너를 이곳으로 이동합니다.
-
-#### [MODIFY] [src/app.js](file:///c:/Users/student/Documents/etf-eda/src/app.js)
-- `renderCharts` 실행 흐름을 변경된 구조에 맞게 수정합니다:
-  - `renderCompanyBar()` 및 `renderThemeBar()` 구현 (기존 트리맵을 대체하는 막대 그래프 2종)
-  - `renderHistogram()`을 수정하여 등락률 범위를 구간 집계(Binning)한 후 막대 그래프(`bar` 타입)로 렌더링하도록 변경
-  - `renderTreeMap()`을 신규 탭에 매핑하고, 운용사별 종목 분포 시가총액 데이터를 고도화하여 렌더링
-- 탭 선택 및 정렬 로직과 매끄럽게 호환되도록 구성합니다.
-
----
-
-### [MODIFY] 배포 및 보고 문서
+### [MODIFY] 보고 문서
 
 #### [MODIFY] [docs/walkthrough.md](file:///c:/Users/student/Documents/etf-eda/docs/walkthrough.md)
-- 차트 개편 결과를 업데이트하고 검증 결과를 명시합니다.
+- GitHub Actions 자동 데이터 수집 결과 및 워크플로우 적용 사항을 추가 기술합니다.
 
 ## Verification Plan
 
-### 수동 검증 및 동작 테스트
-1. **차트 유형 검증**: 탭 1, 2, 3의 모든 차트가 Plotly.js의 막대 그래프(`bar`) 형태로 정상 출력되는지 확인합니다.
-2. **트리맵 기능 검증**: 새로 추가된 탭에서 각 운용사를 클릭했을 때 하위 ETF 종목들이 시가총액 크기에 비례하여 정상적으로 사각형 영역으로 쪼개져 렌더링되는지 확인합니다.
-3. **필터 연동성**: 사이드바 필터를 조작할 때 막대 그래프들과 트리맵 차트의 비중이 동적으로 갱신되는지 확인합니다.
+### 수동 및 Actions 검증
+1. **로컬 실행 테스트**: 로컬 환경에서 `python src/etf_collector.py`를 구동해 `data/` 밑에 새로운 CSV 파일이 오류 없이 정상 생성되는지 검증합니다.
+2. **GitHub Actions 수동 트리거**: 코드를 푸시한 후 GitHub 저장소의 Actions 탭으로 이동하여 `ETF Data Auto Collector` 워크플로우를 수동 실행(`Run workflow`)해 봅니다.
+3. **자동 커밋 & 푸시 확인**: Actions 작업이 성공적으로 끝난 뒤, 실제로 `data/` 디렉토리에 타임스탬프가 적용된 CSV 파일이 커밋되어 푸시되었는지 커밋 히스토리를 대조합니다.

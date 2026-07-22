@@ -1,6 +1,7 @@
-# ETF EDA 차트 개편 및 트리맵 신설 작업 현황
+# GitHub Actions ETF 데이터 수집 자동화 작업 현황
 
-- `[x]` HTML 마크업 수정 (`index.html` 탭 레이아웃 및 트리맵 전용 탭 컨테이너 추가)
-- `[x]` JavaScript 차트 구현 수정 (`src/app.js`에 막대 그래프 일원화 로직 및 트리맵 탭 연동)
-- `[x]` 로컬 브라우저 동작 검증 (수동 테스트)
-- `[x]` Git 커밋 및 원격 저장소 푸시
+- `[x]` 1회성 데이터 수집기 구현 (`src/etf_collector.py` 신규 작성)
+- `[x]` GitHub Actions 워크플로우 정의 (`.github/workflows/data-collector.yml` 신규 작성)
+- `[x]` 수집기 로컬 정상 실행 여부 검증 (로컬 실행 테스트)
+- `[/]` Git 커밋 및 원격 저장소 푸시
+- `[ ]` Actions 자동 커밋/푸시 최종 연동 검증

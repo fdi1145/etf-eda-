@@ -30,7 +30,7 @@ env.bak/
 venv.bak/
 
 # Project Specific Data & Logs
-data/
+# data/
 logs/
 *.log
 

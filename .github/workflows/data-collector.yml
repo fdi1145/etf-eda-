@@ -1,0 +1,44 @@
+name: ETF Data Auto Collector
+
+on:
+  schedule:
+    # 5분 주기 실행 (GitHub Actions 공식 최소 주기 및 API 제한 우회 권장 사양)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    # 수동 실행 트리거 지원 (GitHub UI에서 직접 즉시 수집 가능)
+
+permissions:
+  contents: write  # data/ 디렉토리 파일 푸시 권한 획득
+
+jobs:
+  collect-and-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Run ETF Collector Script
+      run: |
+        python src/etf_collector.py
+
+    - name: Commit and Push changes
+      run: |
+        git config --local user.name "fdi1145"
+        git config --local user.email "fdi1145@naver.com"
+        
+        # 신규 수집된 데이터 추가
+        git add data/
+        
+        # 변경 사항(신규 수집 파일)이 있는 경우에만 커밋 및 푸시 진행
+        if ! git diff --cached --quiet; then
+          git commit -m "Auto-collect ETF data: $(date +'%Y-%m-%d %H:%M:%S')"
+          git push origin main
+        else
+          echo "No new data changes to commit."
+        fi
