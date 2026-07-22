@@ -115,7 +115,7 @@ def process_data(etf_list: List[Dict[str, Any]]) -> pd.DataFrame:
         'nav': 'NAV',
         'threeMonthEarnRate': '3개월수익률',
         'quant': '거래량',
-        'amount': '거래대금(백만)',
+        'amonut': '거래대금(백만)',
         'marketSum': '시가총액(억)'
     }
     
