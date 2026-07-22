@@ -444,18 +444,42 @@ function updateKPIs() {
 // ==========================================================================
 
 function renderCharts() {
-    renderCompanyBar();
-    renderThemeBar();
-    renderHistogram();
-    renderMcapBar();
-    renderAmountBar();
-    renderTreeMap();
+    const renderers = [
+        { name: "CompanyBar", fn: renderCompanyBar },
+        { name: "ThemeBar", fn: renderThemeBar },
+        { name: "Histogram", fn: renderHistogram },
+        { name: "McapBar", fn: renderMcapBar },
+        { name: "AmountBar", fn: renderAmountBar },
+        { name: "TreeMap", fn: renderTreeMap }
+    ];
+    
+    renderers.forEach(renderer => {
+        try {
+            renderer.fn();
+        } catch (err) {
+            console.error(`Error rendering chart [${renderer.name}]:`, err);
+        }
+    });
+}
+
+/**
+ * Helper to check if DOM element exists and clean it up if empty
+ */
+function checkElement(id) {
+    const el = document.getElementById(id);
+    if (!el) {
+        console.warn(`Element with ID '${id}' not found in DOM.`);
+        return false;
+    }
+    return true;
 }
 
 /**
  * 🏢 운용사별 시가총액 점유율 막대 그래프
  */
 function renderCompanyBar() {
+    if (!checkElement("chart-company-bar")) return;
+    
     const data = appState.filteredData;
     if (data.length === 0) {
         Plotly.purge("chart-company-bar");
@@ -478,8 +502,7 @@ function renderCompanyBar() {
         type: "bar",
         orientation: "h",
         marker: {
-            color: sorted.map(c => c[1]),
-            colorscale: "Viridis"
+            color: '#3b82f6' // Safe Solid Blue
         },
         text: sorted.map(c => (c[1] / 10000).toFixed(2) + " 조 원"),
         textposition: 'auto'
@@ -487,7 +510,7 @@ function renderCompanyBar() {
     
     const layout = {
         ...PLOTLY_THEME,
-        title: "<b>🏢 자산운용사별 시가총액 합계 (막대 그래프)</b>",
+        title: "<b>🏢 자산운용사별 시가총액 합계</b>",
         xaxis: { 
             title: "시가총액 (억 원)",
             gridcolor: 'rgba(255, 255, 255, 0.05)'
@@ -504,6 +527,8 @@ function renderCompanyBar() {
  * 🏷️ 테마별 시가총액 점유율 막대 그래프
  */
 function renderThemeBar() {
+    if (!checkElement("chart-theme-bar")) return;
+    
     const data = appState.filteredData;
     if (data.length === 0) {
         Plotly.purge("chart-theme-bar");
@@ -526,8 +551,7 @@ function renderThemeBar() {
         type: "bar",
         orientation: "h",
         marker: {
-            color: sorted.map(t => t[1]),
-            colorscale: "Cividis"
+            color: '#10b981' // Safe Solid Green
         },
         text: sorted.map(t => t[1].toLocaleString() + " 억"),
         textposition: 'auto'
@@ -535,7 +559,7 @@ function renderThemeBar() {
     
     const layout = {
         ...PLOTLY_THEME,
-        title: "<b>🏷️ 테마별 시가총액 합계 (막대 그래프)</b>",
+        title: "<b>🏷️ 테마별 시가총액 합계</b>",
         xaxis: { 
             title: "시가총액 (억 원)",
             gridcolor: 'rgba(255, 255, 255, 0.05)'
@@ -552,6 +576,8 @@ function renderThemeBar() {
  * 🌳 운용사별 시가총액 점유율 트리맵 (신규 탭 연동)
  */
 function renderTreeMap() {
+    if (!checkElement("chart-treemap")) return;
+    
     const data = appState.filteredData;
     if (data.length === 0) {
         Plotly.purge("chart-treemap");
@@ -608,6 +634,8 @@ function renderTreeMap() {
  * 📉 ETF 등락률 분포 (구간별 빈도 막대 그래프)
  */
 function renderHistogram() {
+    if (!checkElement("chart-histogram")) return;
+    
     const data = appState.filteredData;
     if (data.length === 0) {
         Plotly.purge("chart-histogram");
